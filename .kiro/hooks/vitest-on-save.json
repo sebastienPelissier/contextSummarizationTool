@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Vitest run on test save",
+      "trigger": "PostFileSave",
+      "description": "Lance les tests vitest à chaque sauvegarde d'un fichier de test",
+      "matcher": "\\.test\\.ts$",
+      "action": {
+        "type": "command",
+        "command": "cd /home/framework/Projects/kiro-challenge/mcp-context-manager && npx vitest run --reporter=verbose 2>&1 | tail -30"
+      }
+    }
+  ]
+}

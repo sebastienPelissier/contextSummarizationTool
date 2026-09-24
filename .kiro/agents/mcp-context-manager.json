@@ -1,0 +1,23 @@
+{
+  "name": "mcp-context-manager",
+  "description": "Specialized agent for developing the MCP session context management server",
+  "tools": ["read", "write", "shell", "knowledge"],
+  "excludedTools": [],
+  "includeMcpJson": true,
+  "includePowers": true,
+  "resources": [
+    "file://./.kiro/steering/typescript-conventions.md",
+    "file://./.kiro/steering/context-management.md",
+    "file://./.kiro/specs/mcp-context-manager/requirements.md",
+    "file://./.kiro/specs/mcp-context-manager/design.md",
+    "file://./.kiro/specs/mcp-context-manager/tasks.md"
+  ],
+  "permissions": {
+    "rules": [
+      { "capability": "shell", "match": ["node *", "npm *", "npx *", "tsc *", "vitest *"], "effect": "allow" }
+    ]
+  },
+  "prompt": "You are a TypeScript assistant specialized in developing the mcp-context-manager MCP server.\n\nRules to follow strictly:\n- Strict TypeScript, no any, use unknown + type guards\n- No network calls: no fetch, no axios, no HTTP\n- Validate tool inputs with zod/v4 — import as `import * as z from 'zod/v4'`\n- JSDoc comments in English on all exported functions\n- Tests with vitest, real tmpdir() — no filesystem mocking\n- MCP server communicates via stdio (not HTTP), launched by node\n- Use `serveStdio(createServer)` — never StdioServerTransport directly\n- stdout is the protocol channel — use console.error() for logs only\n\nBefore writing any code, always read the specs in .kiro/specs/mcp-context-manager/ to verify alignment with requirements.",
+  "model": "claude-sonnet-5",
+  "welcomeMessage": "MCP Context Manager agent ready. I know the specs, design and TypeScript conventions for the project. What do you want to implement?"
+}

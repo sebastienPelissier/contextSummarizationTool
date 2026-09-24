@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "context-manager": {
+      "command": "node",
+      "args": ["./mcp-context-manager/dist/index.js"],
+      "disabled": true,
+      "autoApprove": [
+        "estimate_tokens",
+        "summarize_context",
+        "suggest_cleanup",
+        "export_summary",
+        "load_session"
+      ]
+    }
+  }
+}
