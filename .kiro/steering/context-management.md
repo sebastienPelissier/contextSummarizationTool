@@ -112,6 +112,21 @@ The chars/4 heuristic is an approximation. Known behavior:
 The `estimate_tokens` tool must communicate this uncertainty in its `recommendation` field.
 It is a signal, not a hard measurement.
 
+## MCP server limitations
+
+The MCP server runs as a separate process. It has **no introspective access** to the client's
+context window. This means:
+
+- `estimate_tokens` measures the text **provided as argument** — not the actual session usage
+- `/context` (the only reliable source of exact usage %) is a Kiro CLI internal command,
+  inaccessible from the MCP server process
+- The server cannot trigger `/clear` or any client-side action
+
+**Practical consequence:** the `context-usage-reminder` hook compensates for this by suggesting
+the user run `/context` when the session seems long in volume. The MCP server's `estimate_tokens`
+is useful for measuring specific text snippets (e.g., "how heavy is this file I'm about to load?"),
+not for reading the total session usage.
+
 ## Session file security note
 
 Session files may contain sensitive information (API keys mentioned in conversation,

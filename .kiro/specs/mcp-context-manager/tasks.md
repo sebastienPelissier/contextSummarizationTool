@@ -10,8 +10,11 @@
 
 ---
 
-## Task 2 — Token estimation utility
+## Task 2 — Token estimation utility (internal)
 **Dependencies:** Task 1
+
+`estimateTokens` is an internal utility, NOT an exposed MCP tool.
+Used by `summarize_context` (validates < 500 tokens) and `suggest_cleanup` (estimates savings).
 
 - [ ] Implement `estimateTokens(text: string): number` (chars/4 heuristic)
 - [ ] Unit tests: empty text → 0, short text, long text, Unicode characters
@@ -24,41 +27,32 @@
 
 ---
 
-## Task 3 — `estimate_tokens` tool
+## Task 3 — `summarize_context` tool
 **Dependencies:** Task 2
 
-- [ ] Define Zod schema: `{ text, context_limit? }`
-- [ ] Implement handler: calculation + ok/warning/critical status + recommendation
-- [ ] Tests: ok threshold (<60%), warning (60-90%), critical (>90%)
+**Role:** validates and structures a summary the agent has already written.
+Does NOT generate from raw session text — the agent does that natively.
+
+- [ ] Define Zod schema: `{ draft_summary: string }`
+- [ ] Detect presence of 6 mandatory sections
+- [ ] Detect hollow phrases: `n/a`, `tbd`, `todo`, `nothing`, `none`, `-`, `???`
+- [ ] Validate `## Main Objective` is ≥ 3 words
+- [ ] Validate `## Resume Here` is not generic ("continue where we left off")
+- [ ] Validate at least one decision has reasoning
+- [ ] Return `{ summary, is_valid, warnings[], estimated_tokens }`
+- [ ] Unit tests: valid summary, missing sections, hollow phrases, generic Resume Here
 
 **PBT Properties:**
-- `usage_percent` is always between 0 and 100 (or above if exceeded)
-- `status === "ok"` if and only if `usage_percent < 60`
-- `status === "warning"` if and only if `60 <= usage_percent < 90`
-- `status === "critical"` if and only if `usage_percent >= 90`
-- `estimated_tokens` increases strictly with text length
+- `is_valid === true` if and only if all 6 sections present AND no hollow phrases AND objective ≥ 3 words
+- `warnings` is empty when `is_valid === true`
+- `estimated_tokens` always equals `estimateTokens(summary)`
+- `estimated_tokens < 500` for any well-formed summary
+- A summary with all 6 sections non-empty and no hollow phrases always returns `is_valid: true`
 
 ---
 
-## Task 4 — `summarize_context` tool
-**Dependencies:** Task 1
-
-- [ ] Extract modified files (path regex)
-- [ ] Extract decisions (patterns "decided", "going with", "→", "on a décidé", "on part sur")
-- [ ] Extract next steps (patterns "TODO", "next step", "remaining", "à faire")
-- [ ] Generate structured Markdown summary with "Resume Here" section
-- [ ] Unit tests with fictitious session texts
-
-**PBT Properties:**
-- The summary always contains the 6 mandatory sections (`## Main Objective`, `## Decisions Made`, `## Modified Files`, `## Next Steps`, `## Warnings`, `## Resume Here`)
-- `estimateTokens(summary) < 500` always — summary never exceeds 500 tokens
-- Empty text produces a summary with 6 sections present but empty
-- Text containing N valid file paths produces a summary with N entries in `## Modified Files`
-
----
-
-## Task 5 — `suggest_cleanup` tool
-**Dependencies:** Task 1
+## Task 4 — `suggest_cleanup` tool
+**Dependencies:** Task 2
 
 - [ ] Detect code blocks > 50 lines
 - [ ] Detect repeated content (paragraphs > 3 lines appearing 2+ times)
@@ -76,8 +70,8 @@
 
 ---
 
-## Task 6 — `export_summary` tool
-**Dependencies:** Task 4
+## Task 5 — `export_summary` tool
+**Dependencies:** Task 3
 
 - [ ] Normalize subject to kebab-case ASCII (5 words max)
 - [ ] Naming `session-YYYY-MM-DD-<subject>.md` with anti-overwrite suffix
@@ -94,8 +88,8 @@
 
 ---
 
-## Task 7 — `load_session` tool
-**Dependencies:** Task 6
+## Task 6 — `load_session` tool
+**Dependencies:** Task 5
 
 - [ ] List `.md` files in `./context-summaries/` with date + extracted objective
 - [ ] Load a specific file by name
@@ -110,8 +104,8 @@
 
 ---
 
-## Task 8 — Main MCP server
-**Dependencies:** Tasks 3, 4, 5, 6, 7
+## Task 7 — Main MCP server
+**Dependencies:** Tasks 3, 4, 5, 6
 
 - [ ] Initialize `McpServer` with `serveStdio`
 - [ ] Register all 5 tools with their Zod schemas
@@ -125,9 +119,14 @@
 
 ---
 
-## Task 9 — Documentation and packaging
-**Dependencies:** Task 8
+## Task 8 — Documentation and packaging
+**Dependencies:** Task 7
 
 - [ ] Write `README.md`: installation, Kiro config, Claude Desktop config, usage examples
+- [ ] Document `estimate_tokens` scope clearly: measures provided text, not actual session usage
+- [ ] Document the hook pair:
+  - `session-id-capture` (AgentSpawn): captures `/session-id` → `.kiro/.session-id`
+  - `context-usage-reminder` (AgentStop): calls `/context` in headless mode via `--resume-id`, warns at ≥ 60% and ≥ 90%
+- [ ] Document prerequisite: `KIRO_API_KEY` required for headless `/context` calls
 - [ ] Add `build` and `start` scripts to `package.json`
-- [ ] Update `.kiro/settings/mcp.json` to point to `dist/index.js`
+- [ ] Update `.kiro/settings/mcp.json` to point to `dist/index.js` and enable the server (set `disabled: false`)

@@ -13,11 +13,10 @@ mcp-context-manager/
 │   ├── tools/
 │   │   ├── summarize.ts      # summarize_context tool
 │   │   ├── export.ts         # export_summary tool
-│   │   ├── tokens.ts         # estimate_tokens tool
 │   │   ├── cleanup.ts        # suggest_cleanup tool
 │   │   └── load.ts           # load_session tool
 │   └── utils/
-│       └── tokenizer.ts      # Token estimation (chars/4 heuristic)
+│       └── tokenizer.ts      # Internal utility — estimateTokens(text) used by tools
 ├── package.json
 ├── tsconfig.json
 ├── vitest.config.ts
@@ -45,61 +44,105 @@ AI Client                    mcp-context-manager
     │ <──────────────────────────────│
 ```
 
-## Exposed Tools
+## Complete workflow (hooks + Skill + MCP server)
 
-### `estimate_tokens`
+The server complements the `document-and-clear` Skill. It does NOT replace the agent's
+summarization ability. The full workflow is:
+
+```
+[Session starts]
+    │
+    ▼
+Hook: session-id-capture (AgentSpawn — CLI only)
+  → agent prompt: "Run /session-id and write the UUID to .kiro/.session-id"
+  → .kiro/.session-id now contains the current session UUID
+
+[After each agent response]
+    │
+    ▼
+Hook: context-usage-reminder (AgentStop — command)
+  SESSION_ID=$(cat .kiro/.session-id)
+  CONTEXT=$(kiro-cli chat --agent-engine=v2 --no-interactive \
+    --trust-tools=read --resume-id "$SESSION_ID" "/context")
+  → reads REAL context % from Kiro (not an estimation)
+  → if ≥ 90%: 🚨 CRITICAL — calls export_summary immediately
+  → if ≥ 60%: ⚠️ WARNING — recommends summarize_context + export_summary
+  → if < 60%: silent (no noise)
+
+[User acts on warning — calls MCP tools]
+    │
+    ├─1. estimate_tokens(text: <specific excerpt to measure>)
+    │     → useful for measuring weight of a file before loading it
+    │     → NOT for total session usage (hook handles that)
+    │
+    ├─2. Agent writes summary draft natively
+    │
+    ├─3. summarize_context(draft_summary: "<agent-written summary>")
+    │     → { is_valid, warnings[], summary }
+    │     → validates 6 sections, flags hollow phrases
+    │
+    ├─4. export_summary(summary: "...", subject: "impl-mcp-tokens")
+    │     → { file_path: "./context-summaries/session-2026-09-28-..." }
+    │     → anti-overwrite: suffixes -2, -3 if file exists
+    │
+    └─5. Agent: "Saved to <path>. Run /clear when ready."
+         (server never triggers /clear — user action only)
+
+[New session — user says "resume from last session"]
+    │
+    ├─6. load_session()
+    │     → { sessions: [{ file_name, date, objective }, ...] }
+    │     → lists all available sessions, waits for user confirmation
+    │     → never silently loads the most recent
+    │
+    └─7. load_session(file_name: "session-2026-09-28-impl-mcp-tokens.md")
+          → { content: "## Main Objective\n..." }
+          → agent injects as context
+```
+
+**Key insight:** the `context-usage-reminder` hook reads the **real** context % via
+`kiro-cli chat --agent-engine=v2 --no-interactive --resume-id <id> "/context"`.
+This requires the session ID captured at startup by `session-id-capture` hook.
+The MCP server's `estimate_tokens` is complementary — it measures specific text snippets,
+not the total session usage.
+
+## Exposed Tools (4)
+
+The server exposes **4 tools**. `estimateTokens` is an internal utility used by the tools
+but NOT exposed as a MCP tool — context window monitoring is handled by the
+`context-usage-reminder` hook via `kiro-cli --no-interactive "/context"`.
+
+### `summarize_context`
+**Role:** validates and structures a summary the agent has already written.
+Does NOT generate a summary from raw session text — the agent does that natively.
+
 **Input:**
 ```typescript
-{ text: string; context_limit?: number }  // context_limit default: 200000
+{ draft_summary: string }
 ```
 **Output:**
 ```typescript
 {
-  estimated_tokens: number;
-  context_limit: number;
-  usage_percent: number;
-  status: "ok" | "warning" | "critical";
-  recommendation: string;
+  summary: string;          // validated and structured Markdown
+  is_valid: boolean;
+  warnings: string[];       // hollow phrases detected, missing sections, etc.
+  estimated_tokens: number; // must be < 500
 }
 ```
-**Thresholds (field-tested):**
-- `ok`: < 60%
-- `warning`: 60–90% → recommends triggering `summarize_context` + `export_summary`
-- `critical`: > 90% → immediate export recommended
 
-**Heuristic:** `tokens ≈ chars / 4` (GPT/Claude approximation, ±15% accuracy)
+**Validation rules (from document-and-clear Skill experience):**
+- All 6 sections must be present: `## Main Objective`, `## Decisions Made`, `## Modified Files`,
+  `## Next Steps`, `## Warnings`, `## Resume Here`
+- `## Main Objective` must be ≥ 3 words (not generic)
+- `## Resume Here` must not contain hollow phrases like "continue where we left off"
+- Hollow phrases flagged everywhere: `n/a`, `tbd`, `todo`, `nothing`, `none`, `-`, `???`
+- At least one decision must have a reasoning (the "why" is critical)
+- Total output must be < 500 tokens
 
----
-
-### `summarize_context`
-**Input:**
-```typescript
-{ session_text: string }
-```
-**Output:** structured Markdown summary:
-```markdown
-## Main Objective
-...
-
-## Decisions Made
-- [decision] — [reasoning if detectable]
-
-## Modified Files
-- `path/to/file.ts` — [description]
-
-## Next Steps
-- ...
-
-## Warnings
-- ...
-
-## Resume Here
-[Suggested first prompt for the next session]
-```
-**Pattern extraction:**
-- Files: regex on paths (`/[\w./\-]+\.(ts|js|py|md|json|yaml)/g`)
-- Decisions: keywords (`"decided"`, `"choice"`, `"→"`, `"going with"`, `"on a décidé"`, `"on part sur"`)
-- Next steps: patterns (`"TODO"`, `"next step"`, `"remaining"`, `"à faire"`, `"il reste"`)
+**What it does NOT do:**
+- Does not extract information from raw session text
+- Does not rewrite the summary — it flags issues and returns the corrected structure
+- Does not block export if warnings exist — it informs and lets the user decide
 
 ---
 

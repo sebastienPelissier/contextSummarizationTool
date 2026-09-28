@@ -1,3 +1,4 @@
+kiro-cli --resume-id cli_3342dc00-47e5-456b-aaae-b62f0afcdcac_CvkJS8dD
 # MCP Context Manager
 
 > A local MCP server for AI session context management — transparent, offline, no black box.
