@@ -1,0 +1,24 @@
+{
+  "tool": "claude-code",
+  "paths": {
+    "sessions_dir": "./context-summaries",
+    "session_id_file": ".claude/.session-id"
+  },
+  "hooks": {
+    "session_id_capture": {
+      "command": "/session-id",
+      "output_file": ".claude/.session-id",
+      "description": "Captures session UUID for context monitoring"
+    },
+    "context_check": {
+      "type": "cli",
+      "command": "claude -p --resume \"$SESSION_ID\" \"/context\"",
+      "output_regex": "\\*\\*Tokens:\\*\\* [^(]+\\((\\d+)%\\)",
+      "description": "Retrieves real context usage percentage via Claude CLI"
+    }
+  },
+  "thresholds": {
+    "warning": 0.60,
+    "critical": 0.80
+  }
+}

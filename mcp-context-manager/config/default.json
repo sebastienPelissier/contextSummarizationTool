@@ -1,0 +1,24 @@
+{
+  "tool": "generic",
+  "paths": {
+    "sessions_dir": "./context-summaries",
+    "session_id_file": null
+  },
+  "hooks": {
+    "session_id_capture": {
+      "command": null,
+      "output_file": null,
+      "description": "No automatic session ID capture for generic tools"
+    },
+    "context_check": {
+      "type": "estimation",
+      "command": null,
+      "output_regex": null,
+      "description": "Manual context checks based on volume heuristics"
+    }
+  },
+  "thresholds": {
+    "warning": 0.60,
+    "critical": 0.80
+  }
+}

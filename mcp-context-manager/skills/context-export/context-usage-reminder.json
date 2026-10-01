@@ -1,0 +1,14 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Context usage reminder",
+      "trigger": "AgentStop",
+      "description": "Mesure le % réel de fenêtre de contexte après chaque réponse et avertit si >= 60%.",
+      "action": {
+        "type": "command",
+        "command": "SESSION_ID=$(cat .kiro/.session-id 2>/dev/null | tr -d '[:space:]'); if [ -z \"$SESSION_ID\" ]; then echo 'ℹ️ Session ID non disponible — lance /session-id pour activer le monitoring de contexte.'; exit 0; fi; CONTEXT=$(kiro-cli chat --agent-engine=v2 --no-interactive --trust-tools=read --resume-id \"$SESSION_ID\" \"/context\" 2>/dev/null); PERCENT=$(echo \"$CONTEXT\" | grep -oP '\\d+(?=%)' | head -1); if [ -z \"$PERCENT\" ]; then exit 0; fi; if [ \"$PERCENT\" -ge 80 ]; then echo \"🚨 Contexte à ${PERCENT}% — CRITIQUE : appelle export_summary immédiatement avant perte de contexte.\"; elif [ \"$PERCENT\" -ge 60 ]; then echo \"⚠️ Contexte à ${PERCENT}% — appelle summarize_context + export_summary avant de continuer.\"; fi"
+      }
+    }
+  ]
+}
