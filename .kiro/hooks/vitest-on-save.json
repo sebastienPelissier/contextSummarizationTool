@@ -4,7 +4,7 @@
     {
       "name": "Vitest run on test save",
       "trigger": "PostFileSave",
-      "description": "Lance les tests vitest à chaque sauvegarde d'un fichier de test",
+      "description": "Runs vitest tests on every test file save",
       "matcher": "\\.test\\.ts$",
       "action": {
         "type": "command",

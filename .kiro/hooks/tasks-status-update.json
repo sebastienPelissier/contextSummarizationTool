@@ -4,11 +4,11 @@
     {
       "name": "Tasks status update on file create",
       "trigger": "PostFileCreate",
-      "description": "Met à jour le statut des tâches dans tasks.md quand des fichiers sont créés",
+      "description": "Updates task status in tasks.md when files are created",
       "matcher": "mcp-context-manager/src/.*\\.ts$",
       "action": {
         "type": "agent",
-        "prompt": "Un fichier source du projet mcp-context-manager vient d'être créé ou modifié. Consulte .kiro/specs/mcp-context-manager/tasks.md et coche les sous-tâches qui correspondent aux fichiers désormais présents dans src/. Ne coche une tâche que si tu as la certitude que son implémentation est complète — en cas de doute, ne pas cocher."
+        "prompt": "A source file from the mcp-context-manager project was just created or modified. Consult .kiro/specs/mcp-context-manager/tasks.md and check off sub-tasks that correspond to files now present in src/. Only check a task if you are certain its implementation is complete — when in doubt, do not check."
       }
     }
   ]

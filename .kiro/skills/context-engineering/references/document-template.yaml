@@ -1,0 +1,82 @@
+# document-and-clear template
+# Fill this file BEFORE running /clear
+# YAML format to prevent the agent from rewriting it spontaneously
+# Source: Context Engineering — Benoît Fontaine, Devoxx France 2026
+
+session:
+  date: "YYYY-MM-DD"
+  agent: "claude-code | cursor | kiro | others"
+  project: "project-name"
+  context_usage_at_snapshot: "XX%"  # % of window used at snapshot time
+
+# ------------------------------------------------------------------
+# PROJECT STATE
+# ------------------------------------------------------------------
+project_state:
+  current_layer: ""  # e.g., "domain", "data", "presentation", "infrastructure"
+  objective: ""      # The overall session objective in one sentence
+  completed_tasks:
+    - ""
+  pending_tasks:
+    - ""
+
+# ------------------------------------------------------------------
+# ARCHITECTURAL DECISIONS
+# All decisions made during this session
+# Format: decision + reason (do not omit the "why")
+# ------------------------------------------------------------------
+architectural_decisions:
+  - decision: ""
+    reason: ""
+    files_affected:
+      - ""
+  # Add as many entries as needed
+
+# ------------------------------------------------------------------
+# ACTIVE CONVENTIONS
+# Project/session-specific conventions (complementary to agent.md)
+# ------------------------------------------------------------------
+conventions:
+  naming: ""           # e.g., "snake_case for variables, PascalCase for classes"
+  file_structure: ""   # e.g., "feature-based under src/features/"
+  testing: ""          # e.g., "BDD Gherkin + unit tests per layer"
+  patterns:
+    - ""
+
+# ------------------------------------------------------------------
+# KEY FILES
+# Important files produced or modified in this session
+# ------------------------------------------------------------------
+key_files:
+  created:
+    - path: ""
+      description: ""
+  modified:
+    - path: ""
+      what_changed: ""
+  to_create_next:
+    - path: ""
+      description: ""
+
+# ------------------------------------------------------------------
+# CONTEXT FOR NEXT SESSION
+# What the next agent MUST know to resume
+# ------------------------------------------------------------------
+next_session:
+  start_with: ""      # First prompt to run in the new session
+  load_files:         # Files to load as priority (tier 1 context)
+    - ""
+  warnings:           # Pitfalls to avoid, errors already encountered
+    - ""
+  open_questions:     # Unresolved questions to investigate
+    - ""
+
+# ------------------------------------------------------------------
+# RESULTS & TESTS
+# ------------------------------------------------------------------
+results:
+  tests_passing: null   # true / false / "partial"
+  test_coverage: ""     # e.g., "unit: OK, BDD: red (no presentation layer)"
+  known_issues:
+    - ""
+  context_tokens_saved: ""  # e.g., "from 122k to 26k tokens after document-and-clear"

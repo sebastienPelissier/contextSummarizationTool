@@ -126,7 +126,7 @@ Does NOT generate from raw session text — the agent does that natively.
 - [ ] Document `estimate_tokens` scope clearly: measures provided text, not actual session usage
 - [ ] Document the hook pair:
   - `session-id-capture` (AgentSpawn): captures `/session-id` → `.kiro/.session-id`
-  - `context-usage-reminder` (AgentStop): calls `/context` in headless mode via `--resume-id`, warns at ≥ 60% and ≥ 90%
+  - `context-usage-reminder` (AgentStop): calls `/context` in headless mode via `--resume-id`, warns at ≥ 60% and ≥ 80%
 - [ ] Document prerequisite: `KIRO_API_KEY` required for headless `/context` calls
 - [ ] Add `build` and `start` scripts to `package.json`
 - [ ] Update `.kiro/settings/mcp.json` to point to `dist/index.js` and enable the server (set `disabled: false`)

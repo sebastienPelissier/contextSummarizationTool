@@ -3,9 +3,8 @@
     "context-manager": {
       "command": "node",
       "args": ["./mcp-context-manager/dist/index.js"],
-      "disabled": true,
+      "disabled": false,
       "autoApprove": [
-        "estimate_tokens",
         "summarize_context",
         "suggest_cleanup",
         "export_summary",

@@ -4,11 +4,11 @@
     {
       "name": "Spec conformity check on tool save",
       "trigger": "PostFileSave",
-      "description": "Vérifie la conformité aux specs après modification d'un outil MCP",
+      "description": "Checks spec conformity after modifying an MCP tool",
       "matcher": "src/tools/.*\\.ts$",
       "action": {
         "type": "agent",
-        "prompt": "Un outil MCP vient d'être modifié dans src/tools/. Vérifie que l'implémentation est toujours conforme à la section correspondante dans .kiro/specs/mcp-context-manager/design.md. Vérifie : Input/Output typés correspondent, seuils corrects (60%/90% pour estimate_tokens), section \"Reprendre ici\" présente dans export_summary, gestion d'erreur avec try/catch et isError:true. Signale toute divergence avec les specs sans modifier le code."
+        "prompt": "An MCP tool was just modified in src/tools/. Check that the implementation still conforms to the corresponding section in .kiro/specs/mcp-context-manager/design.md. Verify: typed Input/Output match, correct thresholds (60%/80%), \"Resume here\" section present in export_summary, error handling with try/catch and isError:true. Report any divergence from specs without modifying the code."
       }
     }
   ]

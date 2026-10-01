@@ -4,7 +4,7 @@
     {
       "name": "TypeScript typecheck on save",
       "trigger": "PostFileSave",
-      "description": "Vérifie la syntaxe TypeScript à chaque sauvegarde d'un fichier src/*.ts",
+      "description": "Checks TypeScript syntax on every src/*.ts file save",
       "matcher": "src/.*\\.ts$",
       "action": {
         "type": "command",

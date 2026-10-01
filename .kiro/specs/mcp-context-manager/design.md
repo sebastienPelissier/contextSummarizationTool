@@ -2,8 +2,8 @@
 
 ## Architecture
 
-A minimal MCP server in TypeScript, transported via **stdio** (no HTTP). The AI client
-(Kiro, Claude Desktop, etc.) launches the process locally and communicates via stdin/stdout
+A minimal MCP server in TypeScript, transported via **stdio** (no HTTP). AI agent tools
+(Kiro, Claude Code, Cursor, etc.) launch the process locally and communicate via stdin/stdout
 following the MCP protocol. No external LLM — everything is local text processing (regex, heuristics).
 
 ```
@@ -17,10 +17,116 @@ mcp-context-manager/
 │   │   └── load.ts           # load_session tool
 │   └── utils/
 │       └── tokenizer.ts      # Internal utility — estimateTokens(text) used by tools
+├── config/
+│   ├── default.json          # Default configuration
+│   ├── kiro.json             # Kiro-specific configuration
+│   └── claude-code.json      # Claude Code-specific configuration
 ├── package.json
 ├── tsconfig.json
 ├── vitest.config.ts
 └── README.md
+```
+
+## Configuration System
+
+The server supports multiple AI agent tools through configuration files. Each config defines:
+- Session ID capture mechanism
+- Context monitoring approach (CLI command + regex parser)
+- File paths and directory structure
+- Tool-specific commands and output parsing
+
+**Configuration priority:**
+1. Environment variable: `MCP_CONTEXT_CONFIG=kiro|claude-code|custom-path`
+2. Auto-detection based on environment markers
+3. Default configuration
+
+**Output parsing:**
+Each tool has a different output format for `/context`. The `output_regex` field extracts the
+percentage value using a capture group:
+
+- **Kiro** outputs: `Context breakdown - 1% used`
+  - Regex: `Context breakdown - (\\d+)% used`
+  - Capture group 1: the percentage number
+
+- **Claude Code** outputs markdown:
+  ```markdown
+  ## Context Usage
+  **Model:** claude-opus-5-5[1m]
+  **Tokens:** 16k / 1m (2%)
+  ```
+  - Regex: `\\*\\*Tokens:\\*\\* [^(]+\\((\\d+)%\\)`
+  - Capture group 1: the percentage number from the parentheses
+
+**Config structure:**
+```json
+{
+  "tool": "kiro",
+  "paths": {
+    "sessions_dir": "./context-summaries",
+    "session_id_file": ".kiro/.session-id"
+  },
+  "hooks": {
+    "session_id_capture": {
+      "command": "/session-id",
+      "description": "Captures session UUID for context monitoring"
+    },
+    "context_check": {
+      "command": "kiro-cli chat --agent-engine=v2 --no-interactive --trust-tools=read --resume-id \"$(cat .kiro/.session-id)\" \"/context\"",
+      "description": "Retrieves real context usage percentage",
+      "output_regex": "Context breakdown - (\\d+)% used"
+    }
+  },
+  "thresholds": {
+    "warning": 0.60,
+    "critical": 0.80
+  }
+}
+```
+
+**Example configurations:**
+
+**kiro.json:**
+```json
+{
+  "tool": "kiro",
+  "paths": {
+    "sessions_dir": "./context-summaries",
+    "session_id_file": ".kiro/.session-id"
+  },
+  "hooks": {
+    "session_id_capture": {
+      "command": "/session-id",
+      "output_file": ".kiro/.session-id"
+    },
+    "context_check": {
+      "type": "cli",
+      "command": "kiro-cli chat --agent-engine=v2 --no-interactive --trust-tools=read --resume-id \"$SESSION_ID\" \"/context\"",
+      "output_regex": "Context breakdown - (\\d+)% used"
+    }
+  }
+}
+```
+
+**claude-code.json:**
+```json
+{
+  "tool": "claude-code",
+  "paths": {
+    "sessions_dir": "./context-summaries",
+    "session_id_file": ".claude/.session-id"
+  },
+  "hooks": {
+    "session_id_capture": {
+      "command": "/session-id",
+      "output_file": ".claude/.session-id"
+    },
+    "context_check": {
+      "type": "cli",
+      "command": "claude -p --resume \"$SESSION_ID\" \"/context\"",
+      "output_regex": "\\*\\*Tokens:\\*\\* [^(]+\\((\\d+)%\\)"
+    }
+  }
+}
 ```
 
 ## MCP Protocol (stdio)
@@ -47,25 +153,26 @@ AI Client                    mcp-context-manager
 ## Complete workflow (hooks + Skill + MCP server)
 
 The server complements the `document-and-clear` Skill. It does NOT replace the agent's
-summarization ability. The full workflow is:
+summarization ability. The full workflow is tool-agnostic but examples use Kiro:
 
 ```
 [Session starts]
     │
     ▼
-Hook: session-id-capture (AgentSpawn — CLI only)
-  → agent prompt: "Run /session-id and write the UUID to .kiro/.session-id"
-  → .kiro/.session-id now contains the current session UUID
+Hook: session-id-capture (tool-specific)
+  Kiro:        Run /session-id → write UUID to .kiro/.session-id
+  Claude Code: Capture $CLAUDE_SESSION_ID → write to .claude/.session-id
+  Generic:     No session tracking — rely on file timestamps
 
-[After each agent response]
+[After each agent response or on user demand]
     │
     ▼
-Hook: context-usage-reminder (AgentStop — command)
-  SESSION_ID=$(cat .kiro/.session-id)
-  CONTEXT=$(kiro-cli chat --agent-engine=v2 --no-interactive \
-    --trust-tools=read --resume-id "$SESSION_ID" "/context")
-  → reads REAL context % from Kiro (not an estimation)
-  → if ≥ 90%: 🚨 CRITICAL — calls export_summary immediately
+Context monitoring (tool-specific)
+  Kiro:        Hook reads real % via kiro-cli --resume-id ... "/context"
+  Claude Code: Hook reads real % via claude -p --resume ... "/context"
+  Generic:     Manual estimation via volume heuristics (>30 exchanges, large files)
+
+  → if ≥ 80%: 🚨 CRITICAL — calls export_summary immediately
   → if ≥ 60%: ⚠️ WARNING — recommends summarize_context + export_summary
   → if < 60%: silent (no noise)
 
@@ -73,7 +180,7 @@ Hook: context-usage-reminder (AgentStop — command)
     │
     ├─1. estimate_tokens(text: <specific excerpt to measure>)
     │     → useful for measuring weight of a file before loading it
-    │     → NOT for total session usage (hook handles that)
+    │     → NOT for total session usage (tool-specific hooks handle that)
     │
     ├─2. Agent writes summary draft natively
     │
@@ -85,8 +192,8 @@ Hook: context-usage-reminder (AgentStop — command)
     │     → { file_path: "./context-summaries/session-2026-09-28-..." }
     │     → anti-overwrite: suffixes -2, -3 if file exists
     │
-    └─5. Agent: "Saved to <path>. Run /clear when ready."
-         (server never triggers /clear — user action only)
+    └─5. Agent: "Saved to <path>. Run /clear or /compact when ready."
+         (server never triggers clear/compact — user action only)
 
 [New session — user says "resume from last session"]
     │
@@ -100,11 +207,15 @@ Hook: context-usage-reminder (AgentStop — command)
           → agent injects as context
 ```
 
-**Key insight:** the `context-usage-reminder` hook reads the **real** context % via
+**Key insight for Kiro:** the `context-usage-reminder` hook reads the **real** context % via
 `kiro-cli chat --agent-engine=v2 --no-interactive --resume-id <id> "/context"`.
 This requires the session ID captured at startup by `session-id-capture` hook.
-The MCP server's `estimate_tokens` is complementary — it measures specific text snippets,
-not the total session usage.
+
+**Key insight for Claude Code:** similar capability via `claude -p --resume <id> "/context"`.
+The `-p` flag runs in non-interactive mode for CLI automation.
+
+**Key insight for other tools:** without CLI introspection, rely on volume heuristics
+(>30 exchanges, repeated file reads, sub-agent launches) or manual user checks.
 
 ## Exposed Tools (4)
 
@@ -180,7 +291,7 @@ Does NOT generate a summary from raw session text — the agent does that native
 ```
 **Detection:**
 - `code_block`: ` ``` ` blocks > 50 lines
-- `repeated_content`: identical paragraphs (>3 lines) appearing 2+ times
+- `repeated_content`: identical paragraphs (separated by blank lines, ≥ 120 chars) appearing 2+ times
 - `resolved_errors`: blocks containing `Error:` or `❌` followed by a success message later
 - `verbose_output`: command outputs > 30 lines (`$`, `>`, listing results)
 
@@ -257,13 +368,19 @@ void serveStdio(createServer);
 
 ## Client Configuration
 
+The MCP server can be configured for different AI agent tools. Each tool may have its own
+configuration approach.
+
 **Kiro (`.kiro/settings/mcp.json`):**
 ```json
 {
   "mcpServers": {
     "context-manager": {
       "command": "node",
-      "args": ["./mcp-context-manager/dist/index.js"]
+      "args": ["./mcp-context-manager/dist/index.js"],
+      "env": {
+        "MCP_CONTEXT_CONFIG": "kiro"
+      }
     }
   }
 }
@@ -275,8 +392,36 @@ void serveStdio(createServer);
   "mcpServers": {
     "context-manager": {
       "command": "npx",
-      "args": ["tsx", "./mcp-context-manager/src/index.ts"]
+      "args": ["tsx", "./mcp-context-manager/src/index.ts"],
+      "env": {
+        "MCP_CONTEXT_CONFIG": "claude-code"
+      }
     }
   }
 }
 ```
+
+**Generic (any MCP-compatible tool):**
+```json
+{
+  "mcpServers": {
+    "context-manager": {
+      "command": "node",
+      "args": ["./mcp-context-manager/dist/index.js"],
+      "env": {
+        "MCP_CONTEXT_CONFIG": "/path/to/custom-config.json"
+      }
+    }
+  }
+}
+```
+
+The server will:
+1. Check `MCP_CONTEXT_CONFIG` environment variable
+2. If not set, auto-detect based on environment markers
+3. Fall back to `config/default.json`
+
+Configuration affects:
+- Default `sessions_dir` path for `load_session` and `export_summary`
+- Hook integration documentation (README)
+- Example setup instructions

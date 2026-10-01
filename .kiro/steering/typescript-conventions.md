@@ -5,8 +5,13 @@ Always follow these rules consistently.
 
 ## Project context
 
-The server exposes 5 MCP tools to manage the context window of AI assistants:
-`estimate_tokens`, `summarize_context`, `suggest_cleanup`, `export_summary`, `load_session`.
+The server exposes **4 MCP tools** to manage the context window of AI assistants:
+* summarize_context,
+* suggest_cleanup,
+* export_summary,
+* load_session
+
+estimateTokens is an **internal utility** (not an exposed tool) used by the tools internally.
 
 All processing is **local**: no external LLM, no network, heuristics and regex only.
 The server must work **offline** and never crash — it always returns a valid MCP response.
@@ -79,12 +84,13 @@ These thresholds come from the `document-and-clear` Skill and are the project re
 
 ```typescript
 const CONTEXT_THRESHOLDS = {
-  WARNING: 0.60,   // 60% — recommend summarize_context + export_summary
-  CRITICAL: 0.90,  // 90% — immediate export recommended before context loss
+  WARNING: 0.60,   // 60%: recommend summarize_context + export_summary
+  CRITICAL: 0.80,  // 80%: session at risk, export before context loss
 } as const;
 ```
 
 Never modify these thresholds without a documented reason.
+Source: Benoît Fontaine, Devoxx France 2026 — "à 60% on compacte, on ne dépasse jamais 80%".
 
 ## Exported session file structure
 
