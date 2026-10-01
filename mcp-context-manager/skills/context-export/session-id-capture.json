@@ -1,0 +1,14 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Capture session ID on spawn",
+      "trigger": "AgentSpawn",
+      "description": "Capture le session ID via kiro-cli en headless et le stocke dans .kiro/.session-id pour le monitoring de contexte.",
+      "action": {
+        "type": "command",
+        "command": "mkdir -p .kiro && SESSION_ID=$(kiro-cli chat --no-interactive --trust-tools=read \"/session-id\" 2>/dev/null | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1); if [ -n \"$SESSION_ID\" ]; then echo \"$SESSION_ID\" > .kiro/.session-id && echo \"Session ID capturé : $SESSION_ID\"; else echo 'ℹ️ Session ID non capturé — monitoring de contexte désactivé.'; fi"
+      }
+    }
+  ]
+}

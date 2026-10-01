@@ -1,0 +1,20 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "mcp-context-manager",
+  "version": "1.0.0",
+  "description": "Gestion transparente de la fenêtre de contexte des sessions IA. Estime l'usage en tokens, résume la session, suggère ce qui peut être nettoyé et exporte un fichier de reprise injectable dans la prochaine session.",
+  "author": {
+    "name": "spelissier",
+    "url": "https://github.com/spelissier/mcp-context-manager"
+  },
+  "keywords": [
+    "context", "contexte", "context manager", "gestion de contexte",
+    "tokens", "token count", "fenêtre de contexte", "context window",
+    "context rot", "contexte saturé", "session", "résumé", "summary",
+    "document and clear", "export session", "nouvelle session", "reprendre",
+    "compact", "clear context", "vider le contexte"
+  ],
+  "homepage": "https://github.com/spelissier/mcp-context-manager",
+  "repository": "https://github.com/spelissier/mcp-context-manager",
+  "license": "Apache-2.0"
+}

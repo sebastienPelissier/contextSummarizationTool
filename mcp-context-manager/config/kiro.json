@@ -1,0 +1,24 @@
+{
+  "tool": "kiro",
+  "paths": {
+    "sessions_dir": "./context-summaries",
+    "session_id_file": ".kiro/.session-id"
+  },
+  "hooks": {
+    "session_id_capture": {
+      "command": "/session-id",
+      "output_file": ".kiro/.session-id",
+      "description": "Captures session UUID for context monitoring"
+    },
+    "context_check": {
+      "type": "cli",
+      "command": "kiro-cli chat --agent-engine=v2 --no-interactive --trust-tools=read --resume-id \"$SESSION_ID\" \"/context\"",
+      "output_regex": "Context breakdown - (\\d+)% used",
+      "description": "Retrieves real context usage percentage via Kiro CLI"
+    }
+  },
+  "thresholds": {
+    "warning": 0.60,
+    "critical": 0.80
+  }
+}
