@@ -6,7 +6,12 @@
  */
 
 import * as z from 'zod/v4';
-import { estimateTokens, isWithinTokenBudget, MAX_SUMMARY_TOKENS } from '../utils/tokenizer.js';
+import {
+  estimateTokens,
+  isWithinTokenBudget,
+  CONVERSATIONAL_TOKEN_BUDGET,
+  AGENTIC_TOKEN_BUDGET,
+} from '../utils/tokenizer.js';
 
 /** The 6 mandatory sections every exported summary must contain. */
 const MANDATORY_SECTIONS = [
@@ -25,6 +30,9 @@ const HOLLOW_PHRASES = new Set([
   'continue from where we left off', 'pick up where we left off',
 ]);
 
+/** Summary mode — determines the token budget. */
+export type SummaryMode = 'conversational' | 'agentic';
+
 export const summarizeContextSchema = z.object({
   draft_summary: z.string().min(1, 'draft_summary cannot be empty'),
 });
@@ -34,6 +42,15 @@ export interface SummarizeResult {
   is_valid: boolean;
   warnings: string[];
   estimated_tokens: number;
+  mode: SummaryMode;
+  token_budget: number;
+}
+
+/**
+ * Returns the token budget for the given mode.
+ */
+function getTokenBudget(mode: SummaryMode): number {
+  return mode === 'agentic' ? AGENTIC_TOKEN_BUDGET : CONVERSATIONAL_TOKEN_BUDGET;
 }
 
 /**
@@ -75,9 +92,15 @@ function hasDecisionWithReasoning(decisionsContent: string): boolean {
 /**
  * Validates and structures an agent-written session summary.
  * Does not generate content — validates format and flags hollow phrases.
+ *
+ * Token budget (warn-not-block):
+ * - conversational (default): ≤ 1 000 tokens
+ * - agentic: ≤ 2 000 tokens
+ * Exceeding the budget adds a warning but never sets is_valid to false.
  */
-export function validateSummary(draftSummary: string): SummarizeResult {
+export function validateSummary(draftSummary: string, mode: SummaryMode = 'conversational'): SummarizeResult {
   const warnings: string[] = [];
+  const token_budget = getTokenBudget(mode);
 
   // Check mandatory sections presence
   for (const section of MANDATORY_SECTIONS) {
@@ -114,18 +137,22 @@ export function validateSummary(draftSummary: string): SummarizeResult {
 
   const estimated_tokens = estimateTokens(draftSummary);
 
-  if (!isWithinTokenBudget(draftSummary, MAX_SUMMARY_TOKENS)) {
+  // Token budget: warn-not-block
+  if (!isWithinTokenBudget(draftSummary, token_budget)) {
     warnings.push(
-      `Summary exceeds ${MAX_SUMMARY_TOKENS} tokens (estimated: ${estimated_tokens}). ` +
-      'Shorten verbose sections before exporting.',
+      `Summary exceeds ${token_budget}-token budget for ${mode} mode ` +
+      `(estimated: ${estimated_tokens} tokens). ` +
+      'Consider shortening verbose sections, or switch to agentic mode for heavy sessions.',
     );
   }
 
   return {
     summary: draftSummary,
-    is_valid: warnings.length === 0,
+    is_valid: warnings.filter(w => !w.startsWith('Summary exceeds')).length === 0,
     warnings,
     estimated_tokens,
+    mode,
+    token_budget,
   };
 }
 
@@ -134,7 +161,7 @@ export async function handleSummarizeContext(
   input: z.infer<typeof summarizeContextSchema>,
 ): Promise<{ content: Array<{ type: 'text'; text: string }>; isError?: boolean }> {
   try {
-    const result = validateSummary(input.draft_summary);
+    const result = validateSummary(input.draft_summary, 'conversational');
     return {
       content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
     };

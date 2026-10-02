@@ -226,6 +226,7 @@ but NOT exposed as a MCP tool — context window monitoring is handled by the
 ### `summarize_context`
 **Role:** validates and structures a summary the agent has already written.
 Does NOT generate a summary from raw session text — the agent does that natively.
+Always uses **conversational mode** (≤ 1 000 tokens) — intermediate validation checkpoint.
 
 **Input:**
 ```typescript
@@ -236,10 +237,19 @@ Does NOT generate a summary from raw session text — the agent does that native
 {
   summary: string;          // validated and structured Markdown
   is_valid: boolean;
-  warnings: string[];       // hollow phrases detected, missing sections, etc.
-  estimated_tokens: number; // must be < 500
+  warnings: string[];       // hollow phrases detected, missing sections, token budget exceeded, etc.
+  estimated_tokens: number;
+  mode: 'conversational';   // always conversational — fixed
+  token_budget: 1000;       // always 1000 — fixed
 }
 ```
+
+**Fixed mode rule:**
+`summarize_context` always applies the `conversational` budget (≤ 1 000 tokens).
+The agent does not choose the mode. Token budget overrun adds a warning but never blocks export.
+
+**`export_summary` always applies `agentic` mode (≤ 2 000 tokens)** — before a `/clear`,
+maximum detail is always warranted. See `export_summary` for details.
 
 **Validation rules (from document-and-clear Skill experience):**
 - All 6 sections must be present: `## Main Objective`, `## Decisions Made`, `## Modified Files`,
@@ -248,7 +258,6 @@ Does NOT generate a summary from raw session text — the agent does that native
 - `## Resume Here` must not contain hollow phrases like "continue where we left off"
 - Hollow phrases flagged everywhere: `n/a`, `tbd`, `todo`, `nothing`, `none`, `-`, `???`
 - At least one decision must have a reasoning (the "why" is critical)
-- Total output must be < 500 tokens
 
 **What it does NOT do:**
 - Does not extract information from raw session text
@@ -270,6 +279,10 @@ Does NOT generate a summary from raw session text — the agent does that native
 - `subject` normalized to kebab-case ASCII, 5 words max
 - If file already exists: suffix with `-2`, `-3`, etc. (never overwrite)
 - Directory created automatically if absent (`fs.mkdir` with `recursive: true`)
+
+**Fixed mode rule:** `export_summary` always validates the summary in `agentic` mode
+(≤ 2 000 tokens) before writing. Before a `/clear`, maximum detail is always warranted.
+The agent does not choose the mode.
 
 ---
 

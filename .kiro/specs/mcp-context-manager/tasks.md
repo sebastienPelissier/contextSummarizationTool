@@ -32,22 +32,26 @@ Used by `summarize_context` (validates < 500 tokens) and `suggest_cleanup` (esti
 
 **Role:** validates and structures a summary the agent has already written.
 Does NOT generate from raw session text — the agent does that natively.
+Always uses **conversational mode** (≤ 1 000 tokens) — fixed, no user choice.
 
-- [ ] Define Zod schema: `{ draft_summary: string }`
+- [ ] Define Zod schema: `{ draft_summary: string }` — no mode parameter
 - [ ] Detect presence of 6 mandatory sections
 - [ ] Detect hollow phrases: `n/a`, `tbd`, `todo`, `nothing`, `none`, `-`, `???`
 - [ ] Validate `## Main Objective` is ≥ 3 words
 - [ ] Validate `## Resume Here` is not generic ("continue where we left off")
 - [ ] Validate at least one decision has reasoning
-- [ ] Return `{ summary, is_valid, warnings[], estimated_tokens }`
-- [ ] Unit tests: valid summary, missing sections, hollow phrases, generic Resume Here
+- [ ] Always apply conversational budget: warn (not block) when `estimated_tokens > 1000`
+- [ ] Return `{ summary, is_valid, warnings[], estimated_tokens, mode: 'conversational', token_budget: 1000 }`
+- [ ] Unit tests: valid summary, missing sections, hollow phrases, generic Resume Here,
+      budget exceeded (warning only, is_valid unaffected)
 
 **PBT Properties:**
 - `is_valid === true` if and only if all 6 sections present AND no hollow phrases AND objective ≥ 3 words
-- `warnings` is empty when `is_valid === true`
+- `warnings` contains no budget warning when `estimated_tokens <= 1000`
 - `estimated_tokens` always equals `estimateTokens(summary)`
-- `estimated_tokens < 500` for any well-formed summary
-- A summary with all 6 sections non-empty and no hollow phrases always returns `is_valid: true`
+- `mode` is always `'conversational'`
+- `token_budget` is always `1000`
+- A token budget overrun never sets `is_valid` to `false`
 
 ---
 
@@ -76,8 +80,10 @@ Does NOT generate from raw session text — the agent does that natively.
 - [ ] Normalize subject to kebab-case ASCII (5 words max)
 - [ ] Naming `session-YYYY-MM-DD-<subject>.md` with anti-overwrite suffix
 - [ ] Create `./context-summaries/` directory if absent
+- [ ] Always validate summary in `agentic` mode (≤ 2 000 tokens) before writing —
+      include validation result in the export response (`is_valid`, `warnings`)
 - [ ] Write file and return path
-- [ ] Tests: naming, anti-overwrite, directory creation
+- [ ] Tests: naming, anti-overwrite, directory creation, agentic budget warning included in response
 
 **PBT Properties:**
 - Two successive calls with the same subject produce two different paths (anti-overwrite)
@@ -85,6 +91,7 @@ Does NOT generate from raw session text — the agent does that natively.
 - Normalized subject never contains accents, spaces or special characters
 - Normalized subject contains at most 5 words separated by hyphens
 - N successive calls with the same subject produce files `-1`, `-2`, ..., `-N-1`
+- Export always succeeds even when `is_valid` is false — warnings inform, never block
 
 ---
 

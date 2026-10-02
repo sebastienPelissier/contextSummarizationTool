@@ -91,7 +91,19 @@ Each AI tool has a different output format for context status. The `output_regex
   - `## Warnings`
   - `## Resume Here` (concrete first prompt for next session — never "continue where we left off")
 - AND it flags hollow phrases: `n/a`, `tbd`, `todo`, `nothing`, `none`, `-`, `???`
-- AND the output is less than 500 tokens
+- AND the tool applies a fixed token budget of **1 000 tokens** (conversational mode)
+- AND the tool warns (but does not block) if the output exceeds 1 000 tokens
+
+**Fixed mode rules:**
+- `summarize_context` always uses `conversational` mode (≤ 1 000 tokens) — intermediate validation
+- `export_summary` always forces `agentic` mode (≤ 2 000 tokens) — before a `/clear`, maximum
+  detail is always warranted; the agent does not choose the mode
+
+**Rationale:**
+Field-tested context engineering (Anthropic, production experience) has converged on
+500–2 000 tokens as the ideal session summary range. The mode is determined by intent,
+not by the caller: validating a draft mid-session needs less detail than exporting before clearing.
+Removing the choice eliminates a decision the agent should not have to make.
 
 ### US-2 — Export summary to an injectable file
 

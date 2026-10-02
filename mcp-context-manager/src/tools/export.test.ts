@@ -10,6 +10,26 @@ import {
 } from './export.js';
 import { resetConfig } from '../utils/config.js';
 
+/** A structurally valid summary for export tests (agentic budget: ≤2000 tokens). */
+const VALID_EXPORT_SUMMARY = `## Main Objective
+Implement the MCP context manager server with 4 tools
+
+## Decisions Made
+- Used serveStdio over StdioServerTransport — reason: SDK v2 deprecates the latter
+- Chose Markdown over YAML for session files: more readable, directly injectable as context
+
+## Modified Files
+- \`src/tools/export.ts\` — implements export_summary tool
+
+## Next Steps
+- Implement load_session tool (Task 6)
+
+## Warnings
+- estimateTokens underestimates for code-heavy sessions (chars/4 heuristic)
+
+## Resume Here
+Continue with load_session tool. Read design.md section on load_session for Input/Output spec.`;
+
 let tmpDir: string;
 
 beforeEach(() => {
@@ -110,6 +130,32 @@ describe('exportSummary', () => {
     const result = await exportSummary(content, 'test', tmpDir, new Date('2026-09-24'));
     const written = await readFile(result.file_path, 'utf-8');
     expect(written).toBe(content);
+  });
+
+  it('includes validation result in the response (agentic mode)', async () => {
+    tmpDir = await mkdtemp(join(tmpdir(), 'mcp-test-'));
+    const result = await exportSummary('# Summary', 'test', tmpDir, new Date('2026-09-24'));
+    expect(result.is_valid).toBeDefined();
+    expect(result.warnings).toBeDefined();
+    expect(Array.isArray(result.warnings)).toBe(true);
+    expect(result.estimated_tokens).toBeGreaterThan(0);
+  });
+
+  it('export always succeeds even when summary is invalid', async () => {
+    tmpDir = await mkdtemp(join(tmpdir(), 'mcp-test-'));
+    // Summary with no mandatory sections — invalid but export must succeed
+    const result = await exportSummary('No sections here.', 'test', tmpDir, new Date('2026-09-24'));
+    expect(result.created).toBe(true);
+    expect(result.is_valid).toBe(false);
+    expect(result.warnings.length).toBeGreaterThan(0);
+    const { existsSync } = await import('node:fs');
+    expect(existsSync(result.file_path)).toBe(true);
+  });
+
+  it('agentic budget (2000 tokens) applied — valid summary within budget has no budget warning', async () => {
+    tmpDir = await mkdtemp(join(tmpdir(), 'mcp-test-'));
+    const result = await exportSummary(VALID_EXPORT_SUMMARY, 'test', tmpDir, new Date('2026-09-24'));
+    expect(result.warnings.some(w => w.includes('token budget'))).toBe(false);
   });
 
   // PBT: anti-overwrite — two successive calls produce different paths

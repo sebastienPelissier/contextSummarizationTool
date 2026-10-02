@@ -2,7 +2,7 @@
  * Token estimation utility for the mcp-context-manager.
  * Internal utility — NOT an exposed MCP tool.
  *
- * Used by summarize_context (validates < 500 tokens)
+ * Used by summarize_context (validates token budget by mode)
  * and suggest_cleanup (estimates savings per suggestion).
  */
 
@@ -27,5 +27,8 @@ export function isWithinTokenBudget(text: string, maxTokens: number): boolean {
   return estimateTokens(text) <= maxTokens;
 }
 
-/** Maximum tokens allowed for an exported session summary. */
-export const MAX_SUMMARY_TOKENS = 500;
+/** Maximum tokens allowed for an exported session summary — conversational mode. */
+export const CONVERSATIONAL_TOKEN_BUDGET = 1000;
+
+/** Maximum tokens allowed for an exported session summary — agentic mode. */
+export const AGENTIC_TOKEN_BUDGET = 2000;

@@ -48,13 +48,19 @@ If no signal is present, do not trigger preventively: the cost of an unnecessary
 
 ### Phase 1: DOCUMENT
 
-1. Load `.kiro/skill/context-engineering/references/document-template.yaml` as base.
+1. Load `.kiro/skill/context-engineering/references/session-template.md` as base.
 2. Fill the template with the actual session state: completed/pending tasks, architectural
   decisions + their reason (the "why" is critical), key files created/modified,
-  instructions for the next session. Only the fields listed in step 4 are blocking for
-  validation; other sections (`conventions`, `key_files`, `results`, etc.) are strongly
-  recommended but won't fail the script if a session has nothing to put there.
-3. Choose the filename: `context-summaries/session-YYYY-MM-DD-<subject>.yaml`, `<subject>` in
+  instructions for the next session. All sections are recommended for completeness, but only
+  the 6 core sections are validated as mandatory: Main Objective, Decisions Made, Modified Files,
+  Next Steps, Warnings, Resume Here.
+  Choose a `summary_mode` based on session weight:
+  - `conversational` (default): target ≤ 1 000 tokens — short/medium sessions, recent chat context
+  - `agentic`: target ≤ 2 000 tokens — heavy sessions with sub-agents or large file analysis
+  Never exceed 2 000 tokens: beyond that, noise is reintroduced and the next session suffers
+  attention loss ("Lost in the Middle"). The summary should represent at most 5–10% of your
+  available context budget.
+3. Choose the filename: `context-summaries/session-YYYY-MM-DD-<subject>.md`, `<subject>` in
    kebab-case ASCII (lowercase, hyphens, no accents, 5 words max, e.g., `stripe-payment-refactor`).
    If a file with the same name already exists, never overwrite: suffix with `-2`, `-3`, etc.
    If `context-summaries/` doesn't exist yet in the project, create it and verify it's listed
@@ -63,7 +69,7 @@ If no signal is present, do not trigger preventively: the cost of an unnecessary
 4. Validate the file before continuing. Resolve `<skill-path>` using the directory
   containing this SKILL.md (varies by installation: project, user, or plugin):  
   ```bash
-  python3 <skill-path>/scripts/validate_session_doc.py context-summaries/session-YYYY-MM-DD-<subject>.yaml
+  python3 <skill-path>/scripts/validate_session_doc.py context-summaries/session-YYYY-MM-DD-<subject>.md
   ```
    - **Exit 1** (fields to correct): complete the flagged fields in the document and re-run.
    - **Exit 2** (environment or structure error: missing dependency, invalid path,
@@ -93,5 +99,5 @@ subject in their request. Then load the confirmed file, followed by files listed
 
 ## References
 
-- `.kiro/skill/context-engineering/references/document-template.yaml`, YAML template to copy for each session
-- `.kiro/skill/context-engineering/scripts/validate_session_doc.py`, validates that a session document contains no critical empty fields before `/clear` (see exit codes above)
+- `.kiro/skill/context-engineering/references/session-template.md`, Markdown template to use for each session summary
+- `.kiro/skill/context-engineering/references/document-template.yaml`, YAML template (alternative format)

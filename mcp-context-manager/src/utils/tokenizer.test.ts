@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { estimateTokens, isWithinTokenBudget, MAX_SUMMARY_TOKENS } from './tokenizer.js';
+import { estimateTokens, isWithinTokenBudget, CONVERSATIONAL_TOKEN_BUDGET, AGENTIC_TOKEN_BUDGET } from './tokenizer.js';
 
 describe('estimateTokens', () => {
   it('returns 0 for empty string', () => {
@@ -56,8 +56,16 @@ describe('isWithinTokenBudget', () => {
   });
 });
 
-describe('MAX_SUMMARY_TOKENS', () => {
-  it('is 500', () => {
-    expect(MAX_SUMMARY_TOKENS).toBe(500);
+describe('token budgets', () => {
+  it('CONVERSATIONAL_TOKEN_BUDGET is 1000', () => {
+    expect(CONVERSATIONAL_TOKEN_BUDGET).toBe(1000);
+  });
+
+  it('AGENTIC_TOKEN_BUDGET is 2000', () => {
+    expect(AGENTIC_TOKEN_BUDGET).toBe(2000);
+  });
+
+  it('agentic budget is double the conversational budget', () => {
+    expect(AGENTIC_TOKEN_BUDGET).toBe(CONVERSATIONAL_TOKEN_BUDGET * 2);
   });
 });

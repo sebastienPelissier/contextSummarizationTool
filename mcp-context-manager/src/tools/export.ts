@@ -10,6 +10,7 @@ import { mkdir, writeFile, access } from 'node:fs/promises';
 import { join } from 'node:path';
 import * as z from 'zod/v4';
 import { getConfig } from '../utils/config.js';
+import { validateSummary } from './summarize.js';
 
 export const exportSummarySchema = z.object({
   summary: z.string().min(1, 'summary cannot be empty'),
@@ -20,6 +21,9 @@ export const exportSummarySchema = z.object({
 export interface ExportResult {
   file_path: string;
   created: boolean;
+  is_valid: boolean;
+  warnings: string[];
+  estimated_tokens: number;
 }
 const MAX_SUBJECT_WORDS = 5;
 
@@ -81,6 +85,7 @@ export async function findAvailablePath(basePath: string): Promise<string> {
 
 /**
  * Exports a session summary to a timestamped Markdown file.
+ * Always validates the summary in agentic mode (≤ 2000 tokens) before writing.
  * Uses the sessions_dir from the loaded configuration.
  */
 export async function exportSummary(
@@ -96,11 +101,20 @@ export async function exportSummary(
   const fileName = `session-${dateStr}-${normalizedSubject}.md`;
   const basePath = join(dir, fileName);
 
+  // Always validate in agentic mode before export — max detail before /clear
+  const validation = validateSummary(summary, 'agentic');
+
   await mkdir(dir, { recursive: true });
   const filePath = await findAvailablePath(basePath);
   await writeFile(filePath, summary, 'utf-8');
 
-  return { file_path: filePath, created: true };
+  return {
+    file_path: filePath,
+    created: true,
+    is_valid: validation.is_valid,
+    warnings: validation.warnings,
+    estimated_tokens: validation.estimated_tokens,
+  };
 }
 
 /** MCP tool handler for export_summary. */

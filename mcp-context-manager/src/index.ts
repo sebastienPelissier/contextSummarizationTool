@@ -33,8 +33,9 @@ function createServer(): McpServer {
         'Validates and structures a session summary written by the agent. ' +
         'Checks for 6 mandatory sections (## Main Objective, ## Decisions Made, ' +
         '## Modified Files, ## Next Steps, ## Warnings, ## Resume Here), ' +
-        'flags hollow phrases (n/a, tbd, todo...), and validates the summary ' +
-        'fits within 500 tokens. Does NOT generate content from raw session text.',
+        'flags hollow phrases (n/a, tbd, todo...). ' +
+        'Always uses conversational mode (≤1000 tokens): warns if exceeded, never blocks. ' +
+        'Does NOT generate content from raw session text.',
       inputSchema: {
         draft_summary: z.string().min(1).describe(
           'Agent-written session summary draft to validate and structure',
@@ -43,7 +44,7 @@ function createServer(): McpServer {
     },
     async ({ draft_summary }) => {
       try {
-        const result = validateSummary(draft_summary);
+        const result = validateSummary(draft_summary, 'conversational');
         return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
         console.error('[summarize_context]', error);
@@ -87,9 +88,13 @@ function createServer(): McpServer {
     {
       description:
         'Saves a session summary to a timestamped Markdown file in ./context-summaries/. ' +
+        'Always validates in agentic mode (≤2000 tokens) before writing — ' +
+        'before a /clear, maximum detail is always warranted. ' +
+        'Returns validation result (is_valid, warnings) alongside the file path. ' +
         'Naming: session-YYYY-MM-DD-<subject>.md. ' +
         'Anti-overwrite: suffixes -2, -3, etc. if file already exists. ' +
-        'Creates directory automatically if absent.',
+        'Creates directory automatically if absent. ' +
+        'Export always succeeds even if validation warnings are present.',
       inputSchema: {
         summary: z.string().min(1).describe('Session summary content to export'),
         subject: z.string().optional().describe(
